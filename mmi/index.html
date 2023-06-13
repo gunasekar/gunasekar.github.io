@@ -1,0 +1,62 @@
+<html>
+
+<head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+        google.charts.load('current', { 'packages': ['corechart'] });
+        google.charts.setOnLoadCallback(drawChart);
+
+        function getData(url, numberOfDays, extractData) {
+            fetch(url)
+                .then(response => response.json())
+                .then(jsonBody => extractData(jsonBody, numberOfDays));
+        }
+
+        function extractData(jsonResponse, numberOfDays) {
+            arrayData = jsonResponse.data.daily
+            updatedArrayData = arrayData.map(obj => {
+                dt = new Date(obj.date)
+                var diff = Date.now() - dt.getTime();
+                var days = diff / (1000 * 60 * 60 * 24);
+                return { ...obj, date: dt, dateString: new Intl.DateTimeFormat('en-US').format(dt), daysOld: days }
+            }).sort(function (a, b) {
+                return a.date - b.date;
+            });
+
+            rows = updatedArrayData.filter((x) => {
+                if (x.daysOld < numberOfDays) {
+                    return x;
+                }
+            }).map((x) => [x.dateString, x.indicator])
+
+            console.log(rows)
+
+            var chartData = new google.visualization.DataTable();
+            chartData.addColumn('string', 'date');
+            chartData.addColumn('number', 'mmi');
+            chartData.addRows(rows)
+
+            var options = {
+                hAxis: {
+                    title: 'Timeline'
+                },
+                vAxis: {
+                    title: 'MMI'
+                }
+            };
+
+            var chart = new google.visualization.LineChart(document.getElementById('mmi_chart'));
+            chart.draw(chartData, options);
+        }
+
+        function drawChart() {
+            getData('https://api.smallcase.com/market/indices/marketMoodIndex', 365, extractData)
+        }
+    </script>
+</head>
+
+<body>
+    <div id="mmi_chart" style="height: 800px"></div>
+</body>
+
+</html>
